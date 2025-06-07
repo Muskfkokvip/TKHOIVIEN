@@ -1,6 +1,7 @@
 import os
 import re
 import io
+import json
 import traceback
 import pandas as pd
 import gspread
@@ -8,7 +9,7 @@ from aiogram import Bot, Dispatcher, types, executor
 from oauth2client.service_account import ServiceAccountCredentials
 
 # === Cấu hình bot Telegram ===
-API_TOKEN = '8181493570:AAHvPS6TQfP7h820NM5GlWSJ7XlTKw-qnnA'
+API_TOKEN = os.environ.get("BOT_TOKEN")
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
@@ -30,17 +31,16 @@ def load_received_accounts():
 
         data = [row[0] for row in worksheet.get_all_values() if row and row[0].strip()]
         return set(re.sub(r'\s+', '', cell.strip().lower()) for cell in data)
-    except Exception as e:
+    except Exception:
         print("Lỗi khi đọc Google Sheet:")
         traceback.print_exc()
         return set()
-
 
 # === Chuẩn hóa tài khoản ===
 def normalize_account(acc):
     return re.sub(r'\s+', '', acc.strip().lower())
 
-# === Phân tích văn bản/tài khoản ===
+# === Tách tài khoản từ văn bản ===
 def parse_accounts(text):
     text = text.strip()
     if "," in text:
@@ -55,7 +55,7 @@ def parse_accounts(text):
             filtered.append(normalize_account("".join(m)))
     return filtered
 
-# === Xuất danh sách ra file Excel ===
+# === Xuất file Excel ===
 def export_excel(account_list, filename):
     df = pd.DataFrame({
         "STT": range(1, len(account_list) + 1),
@@ -63,33 +63,33 @@ def export_excel(account_list, filename):
     })
     df.to_excel(filename, index=False)
 
-# === Gửi kết quả lọc về Telegram ===
+# === Trả kết quả lọc về Telegram ===
 async def send_summary(message, input_accounts, matched, unmatched):
     total = len(input_accounts)
     summary = (
-        f"📋 Đã lọc thành công: {total} tài khoản\n"
-        f"❌ Tài khoản đã nhận code: {len(matched)}\n"
-        f"✅ Tài khoản chưa nhận code: {len(unmatched)}"
+        f"📋 Đã lọc {total} tài khoản\n"
+        f"❌ Đã nhận: {len(matched)}\n"
+        f"✅ Chưa nhận: {len(unmatched)}"
     )
     await message.reply(summary)
 
-    if 0 < len(matched) <= 50:
-        line = ",".join(matched)
-        await message.reply(f"❌ Danh sách đã nhận:\n{line}")
-    elif len(matched) > 50:
-        export_excel(matched, "danhan.xlsx")
-        await message.reply_document(types.InputFile("danhan.xlsx"), caption="❌ Danh sách đã nhận")
+    if matched:
+        if len(matched) <= 50:
+            await message.reply("❌ Danh sách đã nhận:\n" + ", ".join(matched))
+        else:
+            export_excel(matched, "danhan.xlsx")
+            await message.reply_document(types.InputFile("danhan.xlsx"), caption="❌ Danh sách đã nhận")
 
     if unmatched:
         export_excel(unmatched, "chuanhan.xlsx")
         await message.reply_document(types.InputFile("chuanhan.xlsx"), caption="✅ Danh sách chưa nhận")
 
-# === Xử lý văn bản trực tiếp ===
+# === Xử lý tin nhắn văn bản ===
 @dp.message_handler(content_types=types.ContentTypes.TEXT)
 async def handle_text(message: types.Message):
     input_accounts = parse_accounts(message.text)
     if not input_accounts:
-        await message.reply("Không tìm thấy tài khoản hợp lệ.")
+        await message.reply("❌ Không tìm thấy tài khoản hợp lệ.")
         return
 
     received_accounts = load_received_accounts()
@@ -98,7 +98,7 @@ async def handle_text(message: types.Message):
 
     await send_summary(message, input_accounts, matched, unmatched)
 
-# === Xử lý file gửi lên ===
+# === Xử lý file tải lên ===
 @dp.message_handler(content_types=[types.ContentType.DOCUMENT])
 async def handle_document(message: types.Message):
     document = message.document
@@ -123,14 +123,14 @@ async def handle_document(message: types.Message):
                 if p.text.strip():
                     input_accounts.extend(parse_accounts(p.text))
         else:
-            await message.reply("Định dạng file không được hỗ trợ.")
+            await message.reply("❌ File không được hỗ trợ.")
             return
     except Exception as e:
-        await message.reply(f"Lỗi khi xử lý file: {e}")
+        await message.reply(f"Lỗi xử lý file: {e}")
         return
 
     if not input_accounts:
-        await message.reply("Không tìm thấy tài khoản hợp lệ trong file.")
+        await message.reply("Không tìm thấy tài khoản trong file.")
         return
 
     received_accounts = load_received_accounts()
@@ -139,7 +139,7 @@ async def handle_document(message: types.Message):
 
     await send_summary(message, input_accounts, matched, unmatched)
 
-# === Khởi động bot ===
+# === Chạy bot ===
 if __name__ == '__main__':
     print("🤖 Bot đang chạy và đối chiếu dữ liệu với Google Sheets...")
     executor.start_polling(dp, skip_updates=True)
