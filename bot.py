@@ -16,7 +16,13 @@ dp = Dispatcher(bot)
 def load_received_accounts():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+        json_creds = os.environ.get("GOOGLE_CREDENTIALS")
+        if not json_creds:
+            print("❌ Thiếu GOOGLE_CREDENTIALS trong biến môi trường.")
+            return set()
+
+        creds_dict = json.loads(json_creds)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
 
         sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1GSE0XHi-oz-3MDU-ygo-Y2NVosMsLm53zBi3JjAcPvw/edit")
@@ -28,6 +34,7 @@ def load_received_accounts():
         print("Lỗi khi đọc Google Sheet:")
         traceback.print_exc()
         return set()
+
 
 # === Chuẩn hóa tài khoản ===
 def normalize_account(acc):
