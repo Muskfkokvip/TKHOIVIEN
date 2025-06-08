@@ -28,7 +28,7 @@ def load_received_accounts():
         worksheet = sheet.worksheet("sheet1")
 
         data = [row[0] for row in worksheet.get_all_values() if row and row[0].strip()]
-        return set(re.sub(r'\s+', '', cell.strip().lower()) for cell in data)
+        return set(re.sub(r'\s+', '', cell.strip().lower()) for cell in data)  # Chuẩn hóa dữ liệu trong Google Sheets
     except Exception as e:
         print("Lỗi khi đọc Google Sheet:")
         traceback.print_exc()
@@ -36,7 +36,7 @@ def load_received_accounts():
 
 # === Chuẩn hóa tài khoản ===
 def normalize_account(acc):
-    return re.sub(r'\s+', '', acc.strip().lower())
+    return re.sub(r'\s+', '', acc.strip().lower())  # Loại bỏ khoảng trắng thừa và chuyển thành chữ thường
 
 # === Phân tích văn bản/tài khoản ===
 def parse_accounts(text):
@@ -94,9 +94,12 @@ async def handle_text(message: types.Message):
         await message.reply("Không tìm thấy tài khoản hợp lệ.")
         return
 
+    # Chuẩn hóa tài khoản gửi lên
     received_accounts = load_received_accounts()
-    matched = [acc for acc in input_accounts if acc in received_accounts]
-    unmatched = [acc for acc in input_accounts if acc not in received_accounts]
+
+    # So sánh tài khoản đã nhận và chưa nhận
+    matched = [acc for acc in input_accounts if normalize_account(acc) in received_accounts]
+    unmatched = [acc for acc in input_accounts if normalize_account(acc) not in received_accounts]
 
     await send_summary(message, input_accounts, matched, unmatched)
 
@@ -135,9 +138,12 @@ async def handle_document(message: types.Message):
         await message.reply("Không tìm thấy tài khoản hợp lệ trong file.")
         return
 
+    # Chuẩn hóa tài khoản gửi lên
     received_accounts = load_received_accounts()
-    matched = [acc for acc in input_accounts if acc in received_accounts]
-    unmatched = [acc for acc in input_accounts if acc not in received_accounts]
+
+    # So sánh tài khoản đã nhận và chưa nhận
+    matched = [acc for acc in input_accounts if normalize_account(acc) in received_accounts]
+    unmatched = [acc for acc in input_accounts if normalize_account(acc) not in received_accounts]
 
     await send_summary(message, input_accounts, matched, unmatched)
 
