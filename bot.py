@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import ParseMode
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram import executor
-from docx import Document as DocxDocument
+from docx import Document  # Sửa từ docx import Document
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -31,7 +31,7 @@ def extract_text_from_file(file_bytes: BytesIO, mime: str) -> str:
         if "text" in mime:
             return file_bytes.read().decode("utf-8", errors="ignore")
         elif "msword" in mime or "officedocument.wordprocessingml" in mime:
-            doc = DocxDocument(file_bytes)
+            doc = Document(file_bytes)
             return "\n".join([p.text for p in doc.paragraphs])
         elif "spreadsheetml" in mime:
             df = pd.read_excel(file_bytes)
@@ -106,7 +106,8 @@ async def handle_file(update: types.Message):
         return
 
     # Sửa lại chuỗi ngày tháng theo đúng cú pháp chuỗi
- 
+    date_string = "SN MUSK - OKVIP, [07/06/2025 9:01 CH]"
+    
     file_obj = await file.get_file()
     file_bytes = BytesIO()
     await file_obj.download(out=file_bytes)
