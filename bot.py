@@ -6,9 +6,13 @@ import pandas as pd
 import gspread
 from aiogram import Bot, Dispatcher, types, executor
 from oauth2client.service_account import ServiceAccountCredentials
+from dotenv import load_dotenv
+
+# === Tải các biến môi trường từ .env ===
+load_dotenv()
 
 # === Cấu hình bot Telegram ===
-API_TOKEN = '8181493570:AAHvPS6TQfP7h820NM5GlWSJ7XlTKw-qnnA'  # Your Telegram Bot Token
+API_TOKEN = os.getenv('API_TOKEN')  # Token bot từ biến môi trường
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
@@ -16,7 +20,8 @@ dp = Dispatcher(bot)
 def load_received_accounts():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+        creds_json = os.getenv('SERVICE_ACCOUNT_JSON')  # Lấy thông tin service account từ biến môi trường
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(eval(creds_json), scope)  # Chuyển chuỗi JSON thành dictionary
         client = gspread.authorize(creds)
 
         sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1GSE0XHi-oz-3MDU-ygo-Y2NVosMsLm53zBi3JjAcPvw/edit?gid=1694691629")
