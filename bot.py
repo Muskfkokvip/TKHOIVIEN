@@ -1,4 +1,3 @@
-SN MUSK - OKVIP, [07/06/2025 9:01 CH]
 import os
 import logging
 import pandas as pd
@@ -104,8 +103,10 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Không nhận được file hợp lệ.")
         return
 
-SN MUSK - OKVIP, [07/06/2025 9:01 CH]
-file_obj = await file.get_file()
+    # Sửa lại chuỗi ngày tháng theo đúng cú pháp chuỗi
+    date_string = "SN MUSK - OKVIP, [07/06/2025 9:01 CH]"
+    
+    file_obj = await file.get_file()
     file_bytes = BytesIO()
     await file_obj.download(out=file_bytes)
     file_bytes.seek(0)
@@ -129,5 +130,5 @@ def main():
     app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
     app.run_polling()
 
-if name == "main":
+if __name__ == "__main__":
     main()
