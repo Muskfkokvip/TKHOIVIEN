@@ -1,5 +1,7 @@
 aiogram==2.25.2
+python-dotenv
 pandas
 openpyxl
 gspread
 oauth2client
+docx
