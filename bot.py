@@ -3,8 +3,10 @@ import logging
 import pandas as pd
 from io import BytesIO
 from dotenv import load_dotenv
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import ParseMode
+from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram import executor
 from docx import Document as DocxDocument
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -53,10 +55,10 @@ def filter_accounts_from_sheet(accounts):
     not_received = [acc for acc in accounts if acc not in sheet_data]
     return received, not_received
 
-async def process_and_reply(update: Update, raw_text: str):
+async def process_and_reply(update: types.Message, raw_text: str):
     accounts = parse_accounts(raw_text)
     if len(accounts) == 0:
-        await update.message.reply_text("❌ Không tìm thấy tài khoản hợp lệ để lọc.")
+        await update.answer("❌ Không tìm thấy tài khoản hợp lệ để lọc.")
         return
 
     received, not_received = filter_accounts_from_sheet(accounts)
@@ -73,10 +75,10 @@ async def process_and_reply(update: Update, raw_text: str):
     else:
         response += f"⚠️ Thiếu {target - len(not_received)} tài khoản hợp lệ chưa nhận."
 
-    await update.message.reply_text(response)
+    await update.answer(response)
 
     if len(not_received) == 0:
-        await update.message.reply_text("ℹ️ Không có tài khoản chưa nhận để xuất file XLSX.")
+        await update.answer("ℹ️ Không có tài khoản chưa nhận để xuất file XLSX.")
         return
 
     # Tạo file XLSX chỉ chứa tài khoản chưa nhận
@@ -87,25 +89,24 @@ async def process_and_reply(update: Update, raw_text: str):
     xlsx_file.seek(0)
     xlsx_file.name = "tai_khoan_chua_nhan.xlsx"
 
-    await update.message.reply_document(document=xlsx_file)
+    await update.answer_document(xlsx_file)
 
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_text(update: types.Message):
     # Xử lý cả tin nhắn chuyển tiếp
-    text = update.message.text or ""
+    text = update.text or ""
     if not text.strip():
-        await update.message.reply_text("❌ Tin nhắn rỗng, vui lòng gửi dữ liệu hợp lệ.")
+        await update.answer("❌ Tin nhắn rỗng, vui lòng gửi dữ liệu hợp lệ.")
         return
     await process_and_reply(update, text)
 
-async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file = update.message.document
+async def handle_file(update: types.Message):
+    file = update.document
     if not file:
-        await update.message.reply_text("❌ Không nhận được file hợp lệ.")
+        await update.answer("❌ Không nhận được file hợp lệ.")
         return
 
     # Sửa lại chuỗi ngày tháng theo đúng cú pháp chuỗi
-
-    
+ 
     file_obj = await file.get_file()
     file_bytes = BytesIO()
     await file_obj.download(out=file_bytes)
@@ -113,22 +114,25 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     content = extract_text_from_file(file_bytes, file.mime_type)
     if not content.strip():
-        await update.message.reply_text("❌ Không đọc được nội dung từ file.")
+        await update.answer("❌ Không đọc được nội dung từ file.")
         return
 
     await process_and_reply(update, content)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Gửi danh sách tài khoản (text hoặc file) để bot lọc.\n"
-                                    "- Hỗ trợ file: .xlsx, .docx, .txt\n"
-                                    "- Tài khoản cách nhau dấu phẩy hoặc xuống dòng.")
+async def start(update: types.Message):
+    await update.answer("🤖 Gửi danh sách tài khoản (text hoặc file) để bot lọc.\n"
+                         "- Hỗ trợ file: .xlsx, .docx, .txt\n"
+                         "- Tài khoản cách nhau dấu phẩy hoặc xuống dòng.")
 
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_text))
-    app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
-    app.run_polling()
+    bot = Bot(token=TOKEN)
+    dp = Dispatcher(bot)
+    
+    dp.register_message_handler(start, commands="start")
+    dp.register_message_handler(handle_text, content_types=types.ContentType.TEXT)
+    dp.register_message_handler(handle_file, content_types=types.ContentType.DOCUMENT)
+
+    executor.start_polling(dp)
 
 if __name__ == "__main__":
     main()
