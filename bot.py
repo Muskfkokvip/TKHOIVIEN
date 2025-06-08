@@ -104,7 +104,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Sửa lại chuỗi ngày tháng theo đúng cú pháp chuỗi
-    date_string = "SN MUSK - OKVIP, [07/06/2025 9:01 CH]"
+
     
     file_obj = await file.get_file()
     file_bytes = BytesIO()
